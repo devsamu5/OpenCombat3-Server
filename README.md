@@ -1,0 +1,4 @@
+# OpenCombat3-Server
+
+とりあえず通信部分は五行説からコピペして、
+Game部分はGDScriptからコピペしてひたすらJavascriptに書き直す
