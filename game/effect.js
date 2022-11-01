@@ -31,7 +31,7 @@ class Effect
     {
         const f = catalog.find((v)=>{return text.startsWith(v.pid);});
         if (f)
-            return new SkillEffect(e,Number(text.substring(f.pid.length)))
+            return new Effect(f,Number(text.substring(f.pid.length)))
     	return null
     }
 }

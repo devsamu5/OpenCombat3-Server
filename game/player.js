@@ -20,7 +20,7 @@ class Player
 		this.discard = [];
 		this.life = 0;
 
-		this.next_effect = ProcessorData.Affected.new()
+		this.next_effect = Card.Affected.new()
 		this.select = -1;
 		this.damage = 0;
 		this.draw_indexes = [];
@@ -41,7 +41,7 @@ class Player
 		}
 		if (shuffle)
 			fisherYatesShuffle(this.stock)
-		for (let i = 0;i < this.hand_count;i++)
+		for (let i = 0;i < hand_count;i++)
 			_draw_card();
 	}
 
@@ -78,17 +78,14 @@ class Player
 	combat_end()
 	{
 		this.played.push_back(this.select_card.id_in_deck);
+
+		this.draw_card();
+		if (this.damage > 0)
+			this.draw_card();
 	}
 	add_damage(d) {this.damage += d;}
 
 	is_fatal(){return (this.life - this.damage) <= 0;}
-
-	supply()
-	{
-		this.draw_card();
-		if (this.damage > 0)
-		this.draw_card();
-	}
 
 	recover(index)
 	{
@@ -114,7 +111,7 @@ class Player
 	
 	is_recovery(){return this.damage == 0;}
 
-	change_order(new_indexies)
+	reorder_hand(new_indexies)
 	{
 		if (new_indexies.length != this.hand.length)
 			return false;
@@ -148,6 +145,30 @@ class Player
 		this.life -= this.deck_list[id].data.level;
 		this.discard.push_back(id);
 		return id;
+	}
+
+
+	output_json_string()
+	{
+		const hand = Array.from(this.hand);
+		hand.splice(this.player.select,0,this.player.select_card.id_in_deck);
+		hand.length -= this.player.draw_indexes.length;
+
+		const updates = [];
+		this.deck_list.forEach((v)=>{
+			if (v.affected.updated)
+			{
+				updates.push(`[${v.id_in_deck},${v.data.id},${v.affected.power},${v.affected.hit},${v.affected.block}]`);
+			}
+		});
+
+		return `{"h":[${hand.join(",")}],` +
+			`"s":${this.select},` +
+			`"u":[${updates.join(",")}],` +
+			`"n":[${this.next_effect.power},${this.next_effect.hit},${this.next_effect.block}],` +
+			`"dc":[${this.draw_indexes.join(",")}],` +
+			`"d":${this.damage},` +
+			`"l":${this.life}}`;
 	}
 }
 

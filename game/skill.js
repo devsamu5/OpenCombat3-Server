@@ -48,9 +48,8 @@ class Skill
         else if (this.data.param_type == ParamType.EFFECTS)
         {
 			const param_string = "{" + this.data.parameter + "}"
-			const replace_string = []
-            this.parameter.array.forEach(e => {
-				replace_string.append(e.data.short_name + (e.parameter>0?"+":"") + e.parameter)
+			const replace_string = this.parameter.map((v) => {
+				return v.data.short_name + (v.parameter>0?"+":"") + v.parameter;
             });
     		this.text = this.data.text.replace(param_string,"{" + replace_string.join(" ") + "}")
         }
