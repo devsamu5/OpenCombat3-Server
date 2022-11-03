@@ -4,10 +4,15 @@ const Skill = require("./skill");
 const Card = require("./card");
 const Player = require("./player");
 
-const Catalog = require("./catalog");
+const catalog = require("./catalog");
 
 const NamedSkill = require("./skill_processor")
 
+const Phase = Object.freeze({
+	GAME_FINISH:-1,
+	COMBAT:0,
+	RECOVERY:1,
+});
 
 class SkillOrder
 {
@@ -24,7 +29,6 @@ class SkillOrder
 
 class GameProcessor
 {
-    static catalog  = new Catalog()
     static named_skills = [
 		null,
 		new NamedSkill.Reinforce(),
@@ -36,9 +40,9 @@ class GameProcessor
     constructor(deck1,deck2,regulation)
     {
 		this.round = 1;
-        this.phase = 0;
-        this.player1 = new Player(deck1,4,this.catalog,true);
-        this.player2 = new Player(deck2,4,this.catalog,true);
+        this.phase = Phase.COMBAT;
+        this.player1 = new Player(deck1,4,catalog,true);
+        this.player2 = new Player(deck2,4,catalog,true);
         this.situation = 0;
     }
 
@@ -85,7 +89,7 @@ class GameProcessor
 
 		if (this.player1.is_fatal() || this.player2.is_fatal())
 		{
-			this.round = -this.round;
+			this.phase = -Phase.GAME_FINISH;
 			return;
 		}
 
@@ -97,9 +101,9 @@ class GameProcessor
 		if (this.player1.damage == 0 && this.player2.damage == 0)
 		{
 			this.round++;
-			this.phase = 0;
+			return;
 		}
-		this.phase = 1;
+		this.phase = Phase.RECOVERY;
 	}
 
 	recover(index1,index2)
@@ -116,12 +120,12 @@ class GameProcessor
 		if (this.player1.is_recovery() && this.player2.is_recovery())
 		{
 			this.round++;
-			this.phase = 0;
+			this.phase = Phase.COMBAT;
 		}
 		else if ((!this.player1.is_recovery() && (this.player1.hand.length + this.player1.stock.length <= 1)) ||
 				 (!this.player2.is_recovery() && (this.player2.hand.length + this.player2.stock.length <= 1)))
 		{
-			this.round = -this.round;
+			this.phase = -Phase.GAME_FINISH;
 		}
 	}
 

@@ -7,6 +7,8 @@ const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port:PORT });
 
 
+const catalog = require("./game/catalog")
+
 const GameProcessor = require("./game/processor");
 
 
@@ -99,11 +101,6 @@ class GameRoom
     }
     Select(ws,data)
     {
-        if (this.game.round < 0)
-        {
-            return;
-        }
-
         if (ws === this.client1.ws)
         {
             this.select1 = data.i;
@@ -128,7 +125,7 @@ class GameRoom
                 acted = "Recovery";
             }
         }
-        else
+        else if (this.game.phase == 0)
         {
             if (this.select1 >= 0 && this.select2 >= 0)
             {
@@ -169,12 +166,6 @@ class GameRoom
     }
     Disconnect(ws)
     {
-        if (this.timeout)
-        {
-            clearTimeout(this.timeout);
-            this.timeout = null;
-        }
-        abort.a = "Disconnect";
         if (ws == this.p1client.ws)
         {
             if (this.p2client.ws.readyState == WebSocket.OPEN)
@@ -210,23 +201,25 @@ wss.on('connection', (ws,req) => {
         switch (msg.type)
         {
         case "Select":
+            if (Rooms.has(ws))
             {
                 const room = Rooms.get(ws);
-                room?.Select(ws,msg.data);
+                room.Select(ws,msg.data);
+                if (room.game.phase == -1)
+                {
+                    Rooms.delete(room.client1.ws);
+                    Rooms.delete(room.client2.ws);
+                }
             }
             break;
         case "Ready":
+            if (Rooms.has(ws))
             {
                 const room = Rooms.get(ws);
-                room?.Ready(ws);
+                room.Ready(ws);
             }
             break;
         case "Match":
-            if (msg.version != GameMaster.CardCatalog.version)
-            {
-                ws.send(JSON.stringify({type:"End",data:{msg:"Version mismatch"}}));
-                break;
-            }
             const wait_ws = WaitRegulation.get(msg.data.regulation);
             if (wait_ws && wait_ws.readyState == WebSocket.OPEN)
             {
@@ -236,7 +229,7 @@ wss.on('connection', (ws,req) => {
                 {
                     let room = new GameRoom(wait_client,new ClientData(ws,msg.data));
                     Rooms.set(ws,room);
-                    Rooms.set(wait,room);
+                    Rooms.set(wait_ws,room);
                     WaitRooms.delete(wait_ws)
                     WaitRegulation.delete(msg.data.regulation)
                 }
@@ -248,11 +241,14 @@ wss.on('connection', (ws,req) => {
                 console.log("Match:Wait");
             }
             break;
+        case "Version":
+            ws.send(JSON.stringify({type:"Version",data:{result:(msg.data.version == catalog.version)}}));
+            break;
         case "End":
             {
                 if (Rooms.has(ws))
                 {
-                    const room = Rooms.has(ws);
+                    const room = Rooms.get(ws);
                     Rooms.delete(room.client1.ws);
                     Rooms.delete(room.client2.ws);
                     room.Surrender(ws);

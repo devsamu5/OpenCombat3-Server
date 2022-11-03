@@ -17,7 +17,7 @@ class Catalog
         
         this.effect_catalog = [];
 
-        this.card_version  = 0;
+        this.version  = "";
 
         this._load_effect_data()
         this._load_skill_data()
@@ -97,10 +97,8 @@ class Catalog
                     Number(tsv[3]),Number(tsv[4]),Number(tsv[5]),Number(tsv[6]),Number(tsv[7]),
                     skills,tsv[9],tsv[10]));
         })
-        this.card_version = Number(this.card_catalog.get(0).name)
-
-
+        this.version = this.card_catalog.get(0).name
     }
 }
 
-module.exports = Catalog;
+module.exports = new Catalog();

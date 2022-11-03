@@ -20,7 +20,7 @@ class Player
 		this.discard = [];
 		this.life = 0;
 
-		this.next_effect = Card.Affected.new()
+		this.next_effect = new Card.Affected()
 		this.select = -1;
 		this.damage = 0;
 		this.draw_indexes = [];
@@ -42,7 +42,7 @@ class Player
 		if (shuffle)
 			fisherYatesShuffle(this.stock)
 		for (let i = 0;i < hand_count;i++)
-			_draw_card();
+			this.draw_card();
 	}
 
 	get_hand_card(index){return this.deck_list[this.hand[index]];}
@@ -77,7 +77,7 @@ class Player
 
 	combat_end()
 	{
-		this.played.push_back(this.select_card.id_in_deck);
+		this.played.push(this.select_card.id_in_deck);
 
 		this.draw_card();
 		if (this.damage > 0)
@@ -133,17 +133,17 @@ class Player
 	{
 		if (this.stock.length == 0)
 			return -1;
-		const id = this.stock.pop_back();
-		this.hand.push_back(id);
-		this.draw_indexes.push_back(id);
+		const id = this.stock.pop();
+		this.hand.push(id);
+		this.draw_indexes.push(id);
 		return id;
 	}
 
 	discard_card(i)
 	{
-		const id = this.hand.pop_at(i);
+		const id = this.hand.splice(i,1)[0];
 		this.life -= this.deck_list[id].data.level;
-		this.discard.push_back(id);
+		this.discard.push(id);
 		return id;
 	}
 
