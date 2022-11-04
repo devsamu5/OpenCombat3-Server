@@ -135,6 +135,7 @@ class GameRoom
         }
         if (acted)
         {
+            this.select1 = this.select2 = -1;
             const p1json = this.game.player1.output_json_string();
             const p2json = this.game.player2.output_json_string();
 

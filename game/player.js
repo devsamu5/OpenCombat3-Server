@@ -151,7 +151,8 @@ class Player
 	output_json_string()
 	{
 		const hand = Array.from(this.hand);
-		hand.splice(this.select,0,this.select_card.id_in_deck);
+		if (this.select>= 0)
+			hand.splice(this.select,0,this.select_card.id_in_deck);
 		hand.length -= this.draw_indexes.length;
 
 		const updates = [];

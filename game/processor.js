@@ -9,20 +9,21 @@ const catalog = require("./catalog");
 const NamedSkill = require("./skill_processor")
 
 const Phase = Object.freeze({
-	GAME_FINISH:-1,
+	GAME_END:-1,
 	COMBAT:0,
 	RECOVERY:1,
 });
 
 class SkillOrder
 {
-	constructor(p,s,m,r,situ = 0)
+	constructor(p,s,m,r,situ = 0,sign = 0)
     {
-		this.priority = p
-		this.skill = s
-		this.myself = m
-		this.rival = r
-		this.situation = situ
+		this.priority = p;
+		this.skill = s;
+		this.myself = m;
+		this.rival = r;
+		this.situation = situ;
+		this.sign = sign;
     }
 	static compare(a, b){return a.priority - b.priority;}
 }
@@ -91,7 +92,7 @@ class GameProcessor
 
 		if (this.player1.is_fatal() || this.player2.is_fatal())
 		{
-			this.phase = -Phase.GAME_FINISH;
+			this.phase = Phase.GAME_END;
 			return;
 		}
 
@@ -127,7 +128,7 @@ class GameProcessor
 		else if ((!this.player1.is_recovery() && (this.player1.hand.length + this.player1.stock.length <= 1)) ||
 				 (!this.player2.is_recovery() && (this.player2.hand.length + this.player2.stock.length <= 1)))
 		{
-			this.phase = -Phase.GAME_FINISH;
+			this.phase = Phase.GAME_END;
 		}
 	}
 
@@ -170,7 +171,7 @@ class GameProcessor
 			{
 				const priority = named_skills[s.data.id].engaged_priority();
 				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
+					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation,1))
 			}
 		});
 		this.player2.select_card.data.skills.forEach((s) => {
@@ -178,12 +179,12 @@ class GameProcessor
 			{
 				const priority = named_skills[s.data.id].engaged_priority();
 				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
+					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation,-1))
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = named_skills[e.skill.data.id].process_engaged(e.skill,e.situation,e.myself,e.rival)
+			this.situation = named_skills[e.skill.data.id].process_engaged(e.skill,e.situation,e.myself,e.rival) * e.sign;
 		});
 	}
 
@@ -208,7 +209,7 @@ class GameProcessor
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = named_skills[e.skill.data.id].process_after(e.skill,e.situation,e.myself,e.rival)
+			named_skills[e.skill.data.id].process_after(e.skill,e.situation,e.myself,e.rival)
 		});
 	}
 
@@ -233,7 +234,7 @@ class GameProcessor
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = named_skills[e.skill.data.id].process_end(e.skill,e.situation,e.myself,e.rival)
+			named_skills[e.skill.data.id].process_end(e.skill,e.situation,e.myself,e.rival)
 		});
 	}
 
