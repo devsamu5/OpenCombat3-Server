@@ -58,9 +58,9 @@ class Card{
         this.affected = new Affected()
     }
 
-	get_current_power(){return Math.max(data.power + affected.power,0);}
-	get_current_hit(){return Math.max(data.hit + affected.hit,0);}
-	get_current_block(){return Math.max(data.block + affected.block,0);}
+	get_current_power(){return Math.max(this.data.power + this.affected.power,0);}
+	get_current_hit(){return Math.max(this.data.hit + this.affected.hit,0);}
+	get_current_block(){return Math.max(this.data.block + this.affected.block,0);}
 }
 
 module.exports = {

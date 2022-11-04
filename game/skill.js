@@ -62,9 +62,9 @@ class Skill
 	test_condition(rival_color,link_color)
     {
 		if (this.condition & ColorCondition.VS_FLAG)
-			return (condition & ColorCondition.COLOR_BITS) == rival_color
+			return (this.condition & ColorCondition.COLOR_BITS) == rival_color
 		if (this.condition & ColorCondition.LINK_FLAG)
-			return (condition & ColorCondition.COLOR_BITS) == link_color
+			return (this.condition & ColorCondition.COLOR_BITS) == link_color
 		if (this.condition == ColorCondition.NOCONDITION)
 			return true
 		return false

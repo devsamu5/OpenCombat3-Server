@@ -69,32 +69,32 @@ class GameRoom
         }
         if (this.select1 > 0 && this.select2 > 0)
         {
-            this.client1.ws.send({
-                "type":"First",
-                "data":{
-                    "you":{
-                        "hand":this.game.player1.hand,
-                        "life":this.game.player1.life,
+            this.client1.ws.send(JSON.stringify({
+                type:"First",
+                data:{
+                    you:{
+                        hand:this.game.player1.hand,
+                        life:this.game.player1.life,
                     },
-                    "rival":{
-                        "hand":this.game.player2.hand,
-                        "life":this.game.player2.life,
+                    rival:{
+                        hand:this.game.player2.hand,
+                        life:this.game.player2.life,
                     }
                 }
-            });
-            this.client2.ws.send({
-                "type":"First",
-                "data":{
-                    "you":{
-                        "hand":this.game.player2.hand,
-                        "life":this.game.player2.life,
+            }));
+            this.client2.ws.send(JSON.stringify({
+                type:"First",
+                data:{
+                    you:{
+                        hand:this.game.player2.hand,
+                        life:this.game.player2.life,
                     },
-                    "rival":{
-                        "hand":this.game.player1.hand,
-                        "life":this.game.player1.life,
+                    rival:{
+                        hand:this.game.player1.hand,
+                        life:this.game.player1.life,
                     }
                 }
-            });
+            }));
             this.select1 = this.select2 = -1;
             console.log("GameStart:");
         }
@@ -139,10 +139,10 @@ class GameRoom
             const p2json = this.game.player2.output_json_string();
 
             const send1json = `{"type":"${acted}","data":{` +
-                    `"r":${this.game.round},"n":${this.game.phase},"s":${this.game.situation},` +
+                    `"rc":${this.game.round},"np":${this.game.phase},"ls":${this.game.situation},` +
                     `"y":${p1json},"r":${p2json}}}`;
             const send2json = `{"type":"${acted}","data":{` +
-                    `"r":${this.game.round},"n":${this.game.phase},"s":${-this.game.situation},` +
+                    `"rc":${this.game.round},"np":${this.game.phase},"ls":${-this.game.situation},` +
                     `"y":${p2json},"r":${p1json}}}`;
 
             this.client1.ws.send(send1json);
@@ -151,40 +151,40 @@ class GameRoom
     }
     Surrender(ws)
     {
-        if (ws == this.p1client.ws)
+        if (ws == this.client1.ws)
         {
             console.log("Surrender p1");
-            this.p1client.ws.send(JSON.stringify({type:"End",data:{msg:"You lose"}}));
-            this.p2client.ws.send(JSON.stringify({type:"End",data:{msg:"You win"}}));
+            this.client1.ws.send(JSON.stringify({type:"End",data:{msg:"You lose"}}));
+            this.client2.ws.send(JSON.stringify({type:"End",data:{msg:"You win"}}));
         }
-        else if (ws == this.p2client.ws)
+        else if (ws == this.client2.ws)
         {
             console.log("Surrender p2");
-            this.p1client.ws.send(JSON.stringify({type:"End",data:{msg:"You win"}}));
-            this.p2client.ws.send(JSON.stringify({type:"End",data:{msg:"You lose"}}));
+            this.client1.ws.send(JSON.stringify({type:"End",data:{msg:"You win"}}));
+            this.client2.ws.send(JSON.stringify({type:"End",data:{msg:"You lose"}}));
         }
     }
     Disconnect(ws)
     {
-        if (ws == this.p1client.ws)
+        if (ws == this.client1.ws)
         {
-            if (this.p2client.ws.readyState == WebSocket.OPEN)
+            if (this.client2.ws.readyState == WebSocket.OPEN)
             {
-                this.p2client.ws.send(JSON.stringify({type:"End",data:{msg:"rival disconnect"}}));
+                this.client2.ws.send(JSON.stringify({type:"End",data:{msg:"rival disconnect"}}));
             }
         }
-        else if (ws == this.p2client.ws)
+        else if (ws == this.client2.ws)
         {
-            if (this.p1client.ws.readyState == WebSocket.OPEN)
+            if (this.client1.ws.readyState == WebSocket.OPEN)
             {
-                this.p1client.ws.send(JSON.stringify({type:"End",data:{msg:"rival disconnect"}}));
+                this.client1.ws.send(JSON.stringify({type:"End",data:{msg:"rival disconnect"}}));
             }
         }
     }
     Terminalize()
     {
-        this.p2client.ws.send(JSON.stringify({type:"End",data:{msg:"server error"}}));
-        this.p1client.ws.send(JSON.stringify({type:"End",data:{msg:"server error"}}));
+        this.client2.ws.send(JSON.stringify({type:"End",data:{msg:"server error"}}));
+        this.client1.ws.send(JSON.stringify({type:"End",data:{msg:"server error"}}));
     }
 }
 
@@ -269,7 +269,7 @@ wss.on('connection', (ws,req) => {
         console.log("connection:close");
         if (Rooms.has(ws))
         {
-            const room = Rooms.has(ws);
+            const room = Rooms.get(ws);
             Rooms.delete(room.client1.ws);
             Rooms.delete(room.client2.ws);
             room.Disconnect(ws);

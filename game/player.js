@@ -46,18 +46,18 @@ class Player
 	}
 
 	get_hand_card(index){return this.deck_list[this.hand[index]];}
-	get_lastplayed_card(){return this.played.empty() ? null : this.deck_list[this.played[this.played.length-1]];}
+	get_lastplayed_card(){return this.played.length == 0 ? null : this.deck_list[this.played[this.played.length-1]];}
 
 	combat_start(index)
 	{
 		this.select = index;
-		this.draw_indexes.clear();
+		this.draw_indexes.length = 0;
 		this.deck_list.forEach((v)=>{
 			v.affected.reset_update();
 		});
-		this.select_card = deck_list[hand.pop_at(i)];
-		this.life -= select_card.data.level;
-		this.select_card.affected.add_other(this.next_effect);
+		this.select_card = this.deck_list[this.hand.splice(index,1)[0]];
+		this.life -= this.select_card.data.level;
+		this.select_card.affected.add(this.next_effect.power,this.next_effect.hit,this.next_effect.block);
 		this.next_effect.reset();
 		this.multiply_power = 1.0;
 		this.multiply_hit = 1.0;
@@ -65,9 +65,9 @@ class Player
 		return;
 	}
 
-	get_current_power(){return int(this.select_card.get_current_power() * this.multiply_power);}
-	get_current_hit(){return int(this.select_card.get_current_hit() * this.multiply_hit);}
-	get_current_block(){return int(this.select_card.get_current_block() * this.multiply_block);}
+	get_current_power(){return Math.floor(this.select_card.get_current_power() * this.multiply_power);}
+	get_current_hit(){return Math.floor(this.select_card.get_current_hit() * this.multiply_hit);}
+	get_current_block(){return Math.floor(this.select_card.get_current_block() * this.multiply_block);}
 
 	combat_fix_damage()
 	{
@@ -90,8 +90,8 @@ class Player
 	recover(index)
 	{
 		this.select = index;
-		this.draw_indexes.clear();
-		this.select_card = this.deck_list[hand[index]];
+		this.draw_indexes.length = 0;
+		this.select_card = this.deck_list[this.hand[index]];
 		const id = this.discard_card(index);
 		const card = this.deck_list[id];
 		if (this.damage <= card.data.level)
@@ -105,8 +105,8 @@ class Player
 
 	no_recover()
 	{
-		this.select = -1
-		this.draw_indexes.clear()
+		this.select = -1;
+		this.draw_indexes.length = 0;
 	}
 	
 	is_recovery(){return this.damage == 0;}
@@ -151,8 +151,8 @@ class Player
 	output_json_string()
 	{
 		const hand = Array.from(this.hand);
-		hand.splice(this.player.select,0,this.player.select_card.id_in_deck);
-		hand.length -= this.player.draw_indexes.length;
+		hand.splice(this.select,0,this.select_card.id_in_deck);
+		hand.length -= this.draw_indexes.length;
 
 		const updates = [];
 		this.deck_list.forEach((v)=>{

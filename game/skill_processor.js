@@ -30,13 +30,13 @@ class Reinforce extends ISkill
 			switch(e.data.id)
 			{
 				case Effect.Attribute.POWER:
-					affected.power += e.parameter;
+					affected.add(e.parameter,0,0);
 					break;
 				case Effect.Attribute.HIT:
-					affected.hit += e.parameter;
+					affected.add(0,e.parameter,0);
 					break;
 				case Effect.Attribute.BLOCK:
-					affected.block += e.parameter;
+					affected.add(0,0,e.parameter);
 					break;
 			}
 		});
@@ -67,13 +67,13 @@ class Charge extends ISkill
 				switch(e.data.id)
 				{
 					case Effect.Attribute.POWER:
-						affected.power += e.parameter;
+						affected.add(e.parameter,0,0);
 						break;
 					case Effect.Attribute.HIT:
-						affected.hit += e.parameter;
+						affected.add(0,e.parameter,0);
 						break;
 					case Effect.Attribute.BLOCK:
-						affected.block += e.parameter;
+						affected.add(0,0,e.parameter);
 						break;
 				}
 			});

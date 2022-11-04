@@ -27,15 +27,17 @@ class SkillOrder
 	static compare(a, b){return a.priority - b.priority;}
 }
 
+const named_skills = [
+	null,
+	new NamedSkill.Reinforce(),
+	new NamedSkill.Rush(),
+	new NamedSkill.Charge(),
+	new NamedSkill.Isolate(),
+];
+
 class GameProcessor
 {
-    static named_skills = [
-		null,
-		new NamedSkill.Reinforce(),
-		new NamedSkill.Rush(),
-		new NamedSkill.Charge(),
-		new NamedSkill.Isolate(),
-	];
+
 
     constructor(deck1,deck2,regulation)
     {
@@ -138,100 +140,100 @@ class GameProcessor
 	_before_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player2.select_card.data.color,p1_link_color))
+		this.player1.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
-				const priority = this.named_skills[s.data.id].before_priority();
+				const priority = named_skills[s.data.id].before_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2))
 			}
 		});
-		this.player2.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
-				const priority = this.named_skills[s.data.id].before_priority();
+				const priority = named_skills[s.data.id].before_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1))
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.named_skills[e.skill.data.id].process_before(e.skill,e.myself,e.rival)
+			named_skills[e.skill.data.id].process_before(e.skill,e.myself,e.rival)
 		});
 	}
 
 	_engaged_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player2.select_card.data.color,p1_link_color))
+		this.player1.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
-				const priority = this.named_skills[s.data.id].engaged_priority();
+				const priority = named_skills[s.data.id].engaged_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
 			}
 		});
-		this.player2.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
-				const priority = this.named_skills[s.data.id].engaged_priority();
+				const priority = named_skills[s.data.id].engaged_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = this.named_skills[e.skill.data.id].process_engaged(e.skill,e.situation,e.myself,e.rival)
+			this.situation = named_skills[e.skill.data.id].process_engaged(e.skill,e.situation,e.myself,e.rival)
 		});
 	}
 
 	_after_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player2.select_card.data.color,p1_link_color))
+		this.player1.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
-				const priority = this.named_skills[s.data.id].after_priority();
+				const priority = named_skills[s.data.id].after_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
 			}
 		});
-		this.player2.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
-				const priority = this.named_skills[s.data.id].after_priority();
+				const priority = named_skills[s.data.id].after_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = this.named_skills[e.skill.data.id].process_after(e.skill,e.situation,e.myself,e.rival)
+			this.situation = named_skills[e.skill.data.id].process_after(e.skill,e.situation,e.myself,e.rival)
 		});
 	}
 
 	_end_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player2.select_card.data.color,p1_link_color))
+		this.player1.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
-				const priority = this.named_skills[s.data.id].end_priority();
+				const priority = named_skills[s.data.id].end_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
 			}
 		});
-		this.player2.select_card.data.skills.forEach(e => {
-			if (e.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.select_card.data.skills.forEach((s) => {
+			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
-				const priority = this.named_skills[s.data.id].end_priority();
+				const priority = named_skills[s.data.id].end_priority();
 				if (priority != 0)
 					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = this.named_skills[e.skill.data.id].process_end(e.skill,e.situation,e.myself,e.rival)
+			this.situation = named_skills[e.skill.data.id].process_end(e.skill,e.situation,e.myself,e.rival)
 		});
 	}
 
