@@ -8,6 +8,18 @@ function fisherYatesShuffle(a){
     }
 }
 
+
+class SkillLog
+{
+	constructor(i,t,p,d)
+	{
+		this.index = i
+		this.timing = t
+		this.priority = p
+		this.data = d
+	}
+}
+
 class Player
 {
 	constructor(deck,hand_count,card_catalog,shuffle = true)
@@ -21,10 +33,13 @@ class Player
 		this.life = 0;
 
 		this.next_effect = new Card.Affected()
+
+		this.playing_hand = [];
 		this.select = -1;
 		this.damage = 0;
 		this.draw_indexes = [];
 		this.select_card = null;
+		this.skill_log = []
 
 		this.multiply_power = 1.0;
 		this.multiply_hit = 1.0;
@@ -50,8 +65,10 @@ class Player
 
 	combat_start(index)
 	{
+		this.playing_hand = [...this.hand]
 		this.select = index;
 		this.draw_indexes.length = 0;
+		this.skill_log.length = 0;
 		this.deck_list.forEach((v)=>{
 			v.affected.reset_update();
 		});
@@ -89,8 +106,10 @@ class Player
 
 	recover(index)
 	{
+		this.playing_hand = [...this.hand]
 		this.select = index;
 		this.draw_indexes.length = 0;
+		this.skill_log.length = 0;
 		this.select_card = this.deck_list[this.hand[index]];
 		const id = this.discard_card(index);
 		const card = this.deck_list[id];
@@ -105,8 +124,10 @@ class Player
 
 	no_recover()
 	{
+		this.playing_hand = [...this.hand]
 		this.select = -1;
 		this.draw_indexes.length = 0;
+		this.skill_log.length = 0;
 	}
 	
 	is_recovery(){return this.damage == 0;}
@@ -150,23 +171,13 @@ class Player
 
 	output_json_string()
 	{
-		const hand = Array.from(this.hand);
-		if (this.select>= 0)
-			hand.splice(this.select,0,this.select_card.id_in_deck);
-		hand.length -= this.draw_indexes.length;
-
-		const updates = [];
-		this.deck_list.forEach((v)=>{
-			if (v.affected.updated)
-			{
-				updates.push(`[${v.id_in_deck},${v.data.id},${v.affected.power},${v.affected.hit},${v.affected.block}]`);
-			}
+		const skill_logs = [];
+		this.skill_log.forEach((l)=>{
+			skill_logs.push(`{"i":${l.index},"t":${l.timing},"p":${l.priority},"d":${JSON.stringify(l.data)}}`);
 		});
-
-		return `{"h":[${hand.join(",")}],` +
-			`"s":${this.select},` +
-			`"u":[${updates.join(",")}],` +
-			`"n":[${this.next_effect.power},${this.next_effect.hit},${this.next_effect.block}],` +
+		return `{"h":[${this.playing_hand.join(",")}],` +
+			`"i":${this.select},` +
+			`"s":[${skill_logs.join(",")}],` +
 			`"dc":[${this.draw_indexes.join(",")}],` +
 			`"d":${this.damage},` +
 			`"l":${this.life}}`;
@@ -174,3 +185,4 @@ class Player
 }
 
 module.exports = Player;
+module.exports.SkillLog = SkillLog;

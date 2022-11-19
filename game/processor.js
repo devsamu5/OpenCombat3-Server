@@ -16,10 +16,10 @@ const Phase = Object.freeze({
 
 class SkillOrder
 {
-	constructor(p,s,m,r,situ = 0,sign = 0)
+	constructor(p,i,m,r,situ = 0,sign = 0)
     {
 		this.priority = p;
-		this.skill = s;
+		this.skill_index = i;
 		this.myself = m;
 		this.rival = r;
 		this.situation = situ;
@@ -31,7 +31,7 @@ class SkillOrder
 const named_skills = [
 	null,
 	new NamedSkill.Reinforce(),
-	new NamedSkill.Rush(),
+	new NamedSkill.Pierce(),
 	new NamedSkill.Charge(),
 	new NamedSkill.Isolate(),
 ];
@@ -42,10 +42,12 @@ class GameProcessor
 
     constructor(deck1,deck2,regulation)
     {
+		let hand_count = 3;
+
 		this.round = 1;
         this.phase = Phase.COMBAT;
-        this.player1 = new Player(deck1,4,catalog,true);
-        this.player2 = new Player(deck2,4,catalog,true);
+        this.player1 = new Player(deck1,hand_count,catalog,true);
+        this.player2 = new Player(deck2,hand_count,catalog,true);
         this.situation = 0;
     }
 
@@ -141,100 +143,96 @@ class GameProcessor
 	_before_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s) => {
+		this.player1.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
 				const priority = named_skills[s.data.id].before_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s) => {
+		this.player2.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
 				const priority = named_skills[s.data.id].before_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1))});
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			named_skills[e.skill.data.id].process_before(e.skill,e.myself,e.rival)
+			const skill = e.myself.select_card.data.skills[e.skill_index]
+			named_skills[skill.data.id].process_before(e.skill_index,e.priority,e.myself,e.rival)
 		});
 	}
 
 	_engaged_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s) => {
+		this.player1.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
 				const priority = named_skills[s.data.id].engaged_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation,1))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation,1))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s) => {
+		this.player2.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
 				const priority = named_skills[s.data.id].engaged_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation,-1))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation,-1))});
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			this.situation = named_skills[e.skill.data.id].process_engaged(e.skill,e.situation,e.myself,e.rival) * e.sign;
+			const skill = e.myself.select_card.data.skills[e.skill_index]
+			this.situation = named_skills[skill.data.id].process_engaged(e.skill_index,e.priority,e.situation,e.myself,e.rival) * e.sign;
 		});
 	}
 
 	_after_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s) => {
+		this.player1.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
 				const priority = named_skills[s.data.id].after_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s) => {
+		this.player2.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
 				const priority = named_skills[s.data.id].after_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation))});
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			named_skills[e.skill.data.id].process_after(e.skill,e.situation,e.myself,e.rival)
+			const skill = e.myself.select_card.data.skills[e.skill_index]
+			named_skills[skill.data.id].process_after(e.skill_index,e.priority,e.situation,e.myself,e.rival)
 		});
 	}
 
 	_end_process(p1_link_color, p2_link_color)
 	{
 		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s) => {
+		this.player1.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
 			{
 				const priority = named_skills[s.data.id].end_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player1,this.player2,this.situation))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s) => {
+		this.player2.select_card.data.skills.forEach((s,i) => {
 			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
 			{
 				const priority = named_skills[s.data.id].end_priority();
-				if (priority != 0)
-					skill_order.push(new SkillOrder(priority,s,this.player2,this.player1,-this.situation))
+				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation))});
 			}
 		});
 		skill_order.sort(SkillOrder.compare);
 		skill_order.forEach(e => {
-			named_skills[e.skill.data.id].process_end(e.skill,e.situation,e.myself,e.rival)
+			const skill = e.myself.select_card.data.skills[e.skill_index]
+			named_skills[skill.data.id].process_end(e.skill_index,e.priority,e.situation,e.myself,e.rival)
 		});
 	}
 

@@ -5,26 +5,34 @@ const Card = require("./card");
 const Player = require("./player");
 
 
+const SkillTiming = Object.freeze({
+	BEFORE:0,
+	ENGAGED:1,
+	AFTER:2,
+	END:3
+});
+
 class ISkill
 {
-	before_priority(){return 0;}
-	process_before(_skill,_myself,_rival){}
+	before_priority(){return [];}
+	process_before(_skill_index,_priority,_myself,_rival){}
 
-	engaged_priority(){return 0;}
-	process_engaged(_skill,situation,_myself,_rival){return situation;}
+	engaged_priority(){return [];}
+	process_engaged(_skill_index,_priority,situation,_myself,_rival){return situation;}
 
-	after_priority(){return 0;}
-	process_after(_skill,_situation,_myself,_rival){}
+	after_priority(){return [];}
+	process_after(_skill_index,_priority,_situation,_myself,_rival){}
 
-	end_priority(){return 0;}
-	process_end(_skill,_situation,_myself,_rival){}
+	end_priority(){return [];}
+	process_end(_skill_index,_priority,_situation,_myself,_rival){}
 }
 
 class Reinforce extends ISkill
 {
-	before_priority(){return 1;}
-	process_before(skill,myself,_rival)
+	before_priority(){return [1];}
+	process_before(skill_index,_priority,myself,_rival)
 	{
+		const skill = myself.select_card.data.skills[skill_index]
 		const affected = myself.select_card.affected;
 		skill.parameter.forEach(e => {
 			switch(e.data.id)
@@ -40,28 +48,33 @@ class Reinforce extends ISkill
 					break;
 			}
 		});
+		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.BEFORE,1,true))
 	}
 }
 
-class Rush extends ISkill
+class Pierce extends ISkill
 {
-	after_priority(){return 1;}
-	process_after(_skill,situation,_myself,rival)
+	after_priority(){return [1];}
+	process_after(skill_index,_priority,situation,myself,rival)
 	{
+		let damage = 0;
 		if (situation > 0)
 		{
-			rival.add_damage(Math.floor((rival.get_current_block() + 1) / 2));
+			damage = Math.floor((rival.get_current_block() + 1) / 2);
+			rival.add_damage(damage);
 		}
+		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.AFTER,1,damage))
 	}
 }
 
 class Charge extends ISkill
 {
-	end_priority(){return 1;}
-	process_end(skill,_situation,myself,_rival)
+	end_priority(){return [1];}
+	process_end(skill_index,_priority,_situation,myself,_rival)
 	{
 		if (myself.damage == 0)
 		{
+			const skill = myself.select_card.data.skills[skill_index]
 			const affected = myself.next_effect;
 			skill.parameter.forEach(e => {
 				switch(e.data.id)
@@ -77,16 +90,20 @@ class Charge extends ISkill
 						break;
 				}
 			});
+			myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.END,1,true))
 		}
+		else
+			myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.END,1,false))
 	}
 }
 
 class Isolate extends ISkill
 {
-	engaged_priority(){return 255;}
-	process_engaged(_skill,_situation,myself,_rival)
+	engaged_priority(){return [255];}
+	process_engaged(skill_index,_priority,_situation,myself,_rival)
 	{
 		myself.add_damage(1);
+		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.ENGAGED,255,true))
 		return 0;
 	}
 
@@ -94,7 +111,7 @@ class Isolate extends ISkill
 
 module.exports.ISkill = ISkill;
 module.exports.Reinforce = Reinforce;
-module.exports.Rush = Rush;
+module.exports.Pierce = Pierce;
 module.exports.Charge = Charge;
 module.exports.Isolate = Isolate;
 
