@@ -159,12 +159,19 @@ class Player
 		this.draw_indexes.push(id);
 		return id;
 	}
-
 	discard_card(i)
 	{
 		const id = this.hand.splice(i,1)[0];
 		this.life -= this.deck_list[id].data.level;
 		this.discard.push(id);
+		return id;
+	}
+	skill_draw_card()
+	{
+		if (this.stock.length == 0)
+			return -1;
+		const id = this.stock.pop();
+		this.hand.push(id);
 		return id;
 	}
 

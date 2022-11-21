@@ -34,6 +34,7 @@ const named_skills = [
 	new NamedSkill.Pierce(),
 	new NamedSkill.Charge(),
 	new NamedSkill.Isolate(),
+	new NamedSkill.Absorb(),
 ];
 
 class GameProcessor

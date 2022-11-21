@@ -16,18 +16,25 @@ const ParamType = Object.freeze({
     VOID:0,
     INTEGER:1,
     EFFECTS:2,
+    COLOR:3,
 });
 
 class SkillData
 {
-    constructor(i,n,sn,pt,p,t)
+    constructor(i,n,pt,p)
     {
 		this.id = i;
 		this.name = n;
-		this.short_name = sn;
-        this.param_type = pt;
-        this.parameter = p;
-		this.text = t;
+        this.param_type = pt.split(",");
+		if (this.param_type.length == 1 && this.param_type[0] == ParamType.VOID)
+        {
+            this.param_type = [];
+            this.parameter = [];
+        }
+        else
+        {
+            this.parameter = p.split(",");
+        }
     }
 }
 
@@ -38,25 +45,6 @@ class Skill
 		this.data = sd;
 		this.condition = c
 		this.parameter = p;
-        this.text = "";
-
-        if (this.data.param_type == ParamType.INTEGER)
-        {
-			const param_string = "{" + this.data.parameter + "}"
-			this.text = this.data.text.replace(param_string,"{" + this.parameter + "}")
-        }
-        else if (this.data.param_type == ParamType.EFFECTS)
-        {
-			const param_string = "{" + this.data.parameter + "}"
-			const replace_string = this.parameter.map((v) => {
-				return v.data.short_name + (v.parameter>0?"+":"") + v.parameter;
-            });
-    		this.text = this.data.text.replace(param_string,"{" + replace_string.join(" ") + "}")
-        }
-        else
-        {
-			this.text = this.data.text
-        }
     }
 
 	test_condition(rival_color,link_color)

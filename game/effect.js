@@ -9,13 +9,11 @@ const Attribute = Object.freeze({
 
 class EffectData
 {
-	constructor(i,p,n,sn,t)
+	constructor(i,p,n)
     {
 		this.id = i;
 		this.pid = p;
 		this.name = n;
-		this.short_name = sn;
-		this.text = t;
     }
 }
 

@@ -1,16 +1,15 @@
 
 const NOCOLOR = 0;
-const REC = 1;
+const RED = 1;
 const GREEN = 2;
 const BLUE = 3;
 
 class CardData
 {
-    constructor(i,n,sn,c,l,p,h,b,s,t,im)
+    constructor(i,n,c,l,p,h,b,s)
     {
 	    this.id = i;
         this.name = n;
-        this.short_name = sn;
         this.color = c;
         this.level = l;
         this.power = p;
@@ -18,8 +17,6 @@ class CardData
         this.block = b;
 	
         this.skills = s;
-        this.text = t;
-        this.image = im;
     }
 }
 

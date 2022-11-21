@@ -34,7 +34,7 @@ class Reinforce extends ISkill
 	{
 		const skill = myself.select_card.data.skills[skill_index]
 		const affected = myself.select_card.affected;
-		skill.parameter.forEach(e => {
+		skill.parameter[0].forEach(e => {
 			switch(e.data.id)
 			{
 				case Effect.Attribute.POWER:
@@ -76,7 +76,7 @@ class Charge extends ISkill
 		{
 			const skill = myself.select_card.data.skills[skill_index]
 			const affected = myself.next_effect;
-			skill.parameter.forEach(e => {
+			skill.parameter[0].forEach(e => {
 				switch(e.data.id)
 				{
 					case Effect.Attribute.POWER:
@@ -106,7 +106,46 @@ class Isolate extends ISkill
 		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.ENGAGED,255,true))
 		return 0;
 	}
+}
 
+class Absorb extends ISkill
+{
+	before_priority(){return [1];}
+	process_before(skill_index,_priority,myself,_rival)
+	{
+		const skill = myself.select_card.data.skills[skill_index]
+
+		let level = 0
+		let data = []
+		for (let i = 0;i < myself.hand.length;i++)
+		{
+			const card = myself.deck_list[myself.hand[i]]
+			if (card.data.color == skill.parameter[0])
+			{
+				level = card.data.level
+				myself.discard_card(i)
+				const draw_index = myself.skill_draw_card()
+				data = [i,draw_index]
+				break
+			}
+		}
+		const affected = myself.select_card.affected;
+		skill.parameter[1].forEach(e => {
+			switch(e.data.id)
+			{
+				case Effect.Attribute.POWER:
+					affected.add(e.parameter * level,0,0);
+					break;
+				case Effect.Attribute.HIT:
+					affected.add(0,e.parameter * level,0);
+					break;
+				case Effect.Attribute.BLOCK:
+					affected.add(0,0,e.parameter * level);
+					break;
+			}
+		});
+		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.BEFORE,1,data))
+	}
 }
 
 module.exports.ISkill = ISkill;
@@ -114,4 +153,5 @@ module.exports.Reinforce = Reinforce;
 module.exports.Pierce = Pierce;
 module.exports.Charge = Charge;
 module.exports.Isolate = Isolate;
+module.exports.Absorb = Absorb;
 

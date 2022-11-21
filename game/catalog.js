@@ -29,7 +29,6 @@ class Catalog
 
     get_skill_param(param_type,param)
     {
-
         if (param_type == Skill.ParamType.INTEGER)
         {
             return Number(param);
@@ -40,11 +39,12 @@ class Catalog
                 return Effect.Effect.create(v,this.effect_catalog);
             });
         }
-        if (param_type == Skill.ParamType.VOID)
-            return null
+        if (param_type == Skill.ParamType.COLOR)
+        {
+            return Number(param);
+        }
         return null
     }
-
 
     get_skill_data(id){return this.skill_catalog.get(id);}
 
@@ -59,7 +59,7 @@ class Catalog
         this.effect_catalog = effects.map((v)=>{
             const tsv = v.split("\t");
             const id = Number(tsv[0])
-            return new Effect.EffectData(id,tsv[1],tsv[2],tsv[3],tsv[4]);
+            return new Effect.EffectData(id,tsv[1],tsv[2]);
         });
     }
 
@@ -70,7 +70,7 @@ class Catalog
         skills.forEach((v)=>{
             const tsv = v.split("\t");
             const id = Number(tsv[0])
-            this.skill_catalog.set(id,new Skill.SkillData(id,tsv[1],tsv[2],tsv[3],tsv[4],tsv[5]))
+            this.skill_catalog.set(id,new Skill.SkillData(id,tsv[1],tsv[3],tsv[4]))
         })
     }
 
@@ -82,20 +82,22 @@ class Catalog
             const tsv = v.split("\t");
             const id = Number(tsv[0]);
 
-            const skills = [];
             const skill_texts = tsv[8].split(";");
             if (skill_texts.length == 1 && skill_texts[0] == "")
                 skill_texts.length = 0;
-            skill_texts.forEach((v)=>{
+
+            const skills = skill_texts.map((v)=>{
                 const line = v.split(":");
                 const condition = Number(line[0]);
                 const data = this.get_skill_data(Number(line[1]));
-                const param = this.get_skill_param(data.param_type,line[2]);
-                skills.push(new Skill.Skill(data,condition,param));
+                const param = line[2].split(",").map((v,i)=>{
+                    return this.get_skill_param(data.param_type[i],v);
+                });
+                return new Skill.Skill(data,condition,param);
             })
-            this.card_catalog.set(id,new Card.CardData(id,tsv[1],tsv[2],
+            this.card_catalog.set(id,new Card.CardData(id,tsv[1],
                     Number(tsv[3]),Number(tsv[4]),Number(tsv[5]),Number(tsv[6]),Number(tsv[7]),
-                    skills,tsv[9],tsv[10]));
+                    skills));
         })
         this.version = this.card_catalog.get(0).name
     }
