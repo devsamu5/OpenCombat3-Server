@@ -86,10 +86,11 @@ class Player
 	get_current_hit(){return Math.floor(this.select_card.get_current_hit() * this.multiply_hit);}
 	get_current_block(){return Math.floor(this.select_card.get_current_block() * this.multiply_block);}
 
-	combat_fix_damage()
+	damage_is_fatal()
 	{
 		const total_damage = this.damage - this.get_current_block();
 		this.damage = total_damage < 0 ? 0 : total_damage;
+		return this.life <= this.damage
 	}
 
 	combat_end()
@@ -101,8 +102,6 @@ class Player
 			this.draw_card();
 	}
 	add_damage(d) {this.damage += d;}
-
-	is_fatal(){return (this.life - this.damage) <= 0;}
 
 	recover(index)
 	{
@@ -132,7 +131,7 @@ class Player
 	
 	is_recovery(){return this.damage == 0;}
 
-	reorder_hand(new_indexies)
+	change_order(new_indexies)
 	{
 		if (new_indexies.length != this.hand.length)
 			return false;
@@ -166,13 +165,11 @@ class Player
 		this.discard.push(id);
 		return id;
 	}
-	skill_draw_card()
+
+	hand_to_deck_bottom(i)
 	{
-		if (this.stock.length == 0)
-			return -1;
-		const id = this.stock.pop();
-		this.hand.push(id);
-		return id;
+		const id = this.hand.splice(i,1)[0]
+		this.stock.unshift(id)
 	}
 
 

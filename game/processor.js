@@ -54,11 +54,11 @@ class GameProcessor
 
 	reorder_hand1(hand)
 	{
-		this.player1.reorder_hand(hand);
+		this.player1.change_order(hand);
 	}
 	reorder_hand2(hand)
 	{
-		this.player2.reorder_hand(hand);
+		this.player2.change_order(hand);
 	}
 
 	combat(index1,index2)
@@ -90,10 +90,10 @@ class GameProcessor
 
 		this._after_process(p1_link_color,p2_link_color);
 
-		this.player1.combat_fix_damage();
-		this.player2.combat_fix_damage();
-
-		if (this.player1.is_fatal() || this.player2.is_fatal())
+		const p1fatal = this.player1.damage_is_fatal();
+		const p2fatal = this.player2.damage_is_fatal();
+	
+		if (p1fatal || p2fatal)
 		{
 			this.phase = Phase.GAME_END;
 			return;

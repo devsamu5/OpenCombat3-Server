@@ -116,7 +116,7 @@ class Absorb extends ISkill
 		const skill = myself.select_card.data.skills[skill_index]
 
 		let level = 0
-		let data = []
+		let data = -1
 		for (let i = 0;i < myself.hand.length;i++)
 		{
 			const card = myself.deck_list[myself.hand[i]]
@@ -124,8 +124,8 @@ class Absorb extends ISkill
 			{
 				level = card.data.level
 				myself.discard_card(i)
-				const draw_index = myself.skill_draw_card()
-				data = [i,draw_index]
+				myself.draw_card()
+				data = i
 				break
 			}
 		}
