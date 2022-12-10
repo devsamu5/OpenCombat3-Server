@@ -13,7 +13,7 @@ const GameProcessor = require("./game/processor");
 
 const Regulation = require("./game/regulation")
 
-
+const GRACE_PERIOD = 5000
 
 class ClientData
 {
@@ -116,9 +116,8 @@ class GameRoom
             {
                 const elapse = Date.now() - this.starting_time;
                 this.client1.remain_time -= elapse;
-                if (this.client1.remain_time < 0)
+                if (this.client1.remain_time + GRACE_PERIOD < 0)
                 {
-                    this.client1.remain_time = 0;
                     this.client1.select = 0;
                 }
                 else
@@ -126,15 +125,15 @@ class GameRoom
                     this.client1.select = data.i;
                     this.game.reorder_hand1(data.h);
                 }
+                this.client1.remain_time = Math.max(this.client1.remain_time,0)
                 console.log("Select P1:phase " + data.p + " index=" + data.i);
             }
             else if (ws === this.client2.ws)
             {
                 const elapse = Date.now() - this.starting_time;
                 this.client2.remain_time -= elapse;
-                if (this.client2.remain_time < 0)
+                if (this.client2.remain_time + GRACE_PERIOD < 0)
                 {
-                    this.client2.remain_time = 0;
                     this.client2.select = 0;
                 }
                 else
@@ -142,6 +141,7 @@ class GameRoom
                     this.client2.select = data.i;
                     this.game.reorder_hand2(data.h);
                 }
+                this.client2.remain_time = Math.max(this.client2.remain_time,0)
                 console.log("Select P2:phase " + data.p + " index=" + data.i);
             }
         }
