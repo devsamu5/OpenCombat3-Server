@@ -39,12 +39,8 @@ const named_skills = [
 
 class GameProcessor
 {
-
-
-    constructor(deck1,deck2,regulation)
+    constructor(deck1,deck2,hand_count)
     {
-		let hand_count = 3;
-
 		this.round = 1;
         this.phase = Phase.COMBAT;
         this.player1 = new Player(deck1,hand_count,catalog,true);

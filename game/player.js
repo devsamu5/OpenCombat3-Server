@@ -173,7 +173,7 @@ class Player
 	}
 
 
-	output_json_string()
+	output_json_string(time)
 	{
 		const skill_logs = [];
 		this.skill_log.forEach((l)=>{
@@ -184,7 +184,8 @@ class Player
 			`"s":[${skill_logs.join(",")}],` +
 			`"dc":[${this.draw_indexes.join(",")}],` +
 			`"d":${this.damage},` +
-			`"l":${this.life}}`;
+			`"l":${this.life},` +
+			`"t":${time}}`;
 	}
 }
 

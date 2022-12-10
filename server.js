@@ -11,6 +11,7 @@ const catalog = require("./game/catalog")
 
 const GameProcessor = require("./game/processor");
 
+const Regulation = require("./game/regulation")
 
 
 
@@ -20,21 +21,25 @@ class ClientData
     {
         this.ws = ws;
         this.name = data.name;
-        this.deck = data.deck
-        this.regulation = data.regulation
+        this.deck = data.deck;
+        this.deck_regulation = data.deck_regulation;
+        this.match_regulation = data.match_regulation;
+
+        this.select = -1;
+        this.remain_time = 0;
+        this.starting_time = 0;
     }
 }
 
 class GameRoom
 {
-    constructor(cd1,cd2)
+    constructor(cd1,cd2,deck_regulation,match_regulation)
     {
-        this.game = new GameProcessor(cd1.deck,cd2.deck,cd1.regulation);
+        this.deck_regulation = deck_regulation;
+        this.match_regulation = match_regulation;
+        this.game = new GameProcessor(cd1.deck,cd2.deck,match_regulation.hand_count);
         this.client1 = cd1;
         this.client2 = cd2;
-
-        this.select1 = -1;
-        this.select2 = -1;
 
         this.client1.ws.send(JSON.stringify({
             type:"Primary",
@@ -43,7 +48,8 @@ class GameRoom
                 rname:cd2.name,
                 deck:cd1.deck,
                 rdeck:cd2.deck,
-                regulation:cd1.regulation
+                deck_regulation:cd1.deck_regulation,
+                match_regulation:cd1.match_regulation
             }
         }));
         this.client2.ws.send(JSON.stringify({
@@ -53,7 +59,8 @@ class GameRoom
                 rname:cd1.name,
                 deck:cd2.deck,
                 rdeck:cd1.deck,
-                regulation:cd1.regulation
+                deck_regulation:cd1.deck_regulation,
+                match_regulation:cd1.match_regulation
             }
         }));
     }
@@ -61,13 +68,13 @@ class GameRoom
     {
         if (this.client1.ws == ws)
         {
-            this.select1 = 1;
+            this.client1.select = 1;
         }
         if (this.client2.ws == ws)
         {
-            this.select2 = 1;
+            this.client2.select = 1;
         }
-        if (this.select1 > 0 && this.select2 > 0)
+        if (this.client1.select > 0 && this.client2.select > 0)
         {
             this.client1.ws.send(JSON.stringify({
                 type:"First",
@@ -95,49 +102,80 @@ class GameRoom
                     }
                 }
             }));
-            this.select1 = this.select2 = -1;
+            this.client1.select = this.client2.select = -1;
+            this.client1.remain_time = this.client2.remain_time = this.match_regulation.thinking_time * 1000;
+            this.starting_time = Date.now();
             console.log("GameStart:");
         }
     }
     Select(ws,data)
     {
-        if (ws === this.client1.ws)
+        if (data.p == this.game.round * 2 + this.game.phase)
         {
-            this.select1 = data.i;
-            this.game.reorder_hand1(data.h);
-            console.log("Select P1:phase " + data.p + " index=" + data.i);
-        }
-        else if (ws === this.client2.ws)
-        {
-            this.select2 = data.i;
-            this.game.reorder_hand2(data.h);
-            console.log("Select P2:phase " + data.p + " index=" + data.i);
+            if (ws === this.client1.ws)
+            {
+                const elapse = Date.now() - this.starting_time;
+                this.client1.remain_time -= elapse;
+                if (this.client1.remain_time < 0)
+                {
+                    this.client1.remain_time = 0;
+                    this.client1.select = 0;
+                }
+                else
+                {
+                    this.client1.select = data.i;
+                    this.game.reorder_hand1(data.h);
+                }
+                console.log("Select P1:phase " + data.p + " index=" + data.i);
+            }
+            else if (ws === this.client2.ws)
+            {
+                const elapse = Date.now() - this.starting_time;
+                this.client2.remain_time -= elapse;
+                if (this.client2.remain_time < 0)
+                {
+                    this.client2.remain_time = 0;
+                    this.client2.select = 0;
+                }
+                else
+                {
+                    this.client2.select = data.i;
+                    this.game.reorder_hand2(data.h);
+                }
+                console.log("Select P2:phase " + data.p + " index=" + data.i);
+            }
         }
 
         let acted = null;
         if (this.game.phase == 1)
         {
-            if ((this.select1 >= 0 && this.select2 >= 0) ||
-                (this.game.player1.is_recovery() && this.select2 >= 0) ||
-                (this.game.player2.is_recovery() && this.select1 >= 0))
+            if ((this.client1.select >= 0 && this.client2.select >= 0) ||
+                (this.game.player1.is_recovery() && this.client2.select >= 0) ||
+                (this.game.player2.is_recovery() && this.client1.select >= 0))
             {
-                this.game.recover(this.select1,this.select2);
+                if (!this.game.player1.is_recovery())
+                    this.client1.remain_time += this.match_regulation.recovery_additional_time * 1000;
+                if (!this.game.player2.is_recovery())
+                    this.client2.remain_time += this.match_regulation.recovery_additional_time * 1000;
+                this.game.recover(this.client1.select,this.client2.select);
                 acted = "Recovery";
             }
         }
         else if (this.game.phase == 0)
         {
-            if (this.select1 >= 0 && this.select2 >= 0)
+            if (this.client1.select >= 0 && this.client2.select >= 0)
             {
-                this.game.combat(this.select1,this.select2);
+                this.game.combat(this.client1.select,this.client2.select);
                 acted = "Combat";
+                this.client1.remain_time += this.match_regulation.combat_additional_time * 1000;
+                this.client2.remain_time += this.match_regulation.combat_additional_time * 1000;
             }
         }
         if (acted)
         {
-            this.select1 = this.select2 = -1;
-            const p1json = this.game.player1.output_json_string();
-            const p2json = this.game.player2.output_json_string();
+            this.client1.select = this.client2.select = -1;
+            const p1json = this.game.player1.output_json_string(this.client1.remain_time);
+            const p2json = this.game.player2.output_json_string(this.client2.remain_time);
 
             const send1json = `{"type":"${acted}","data":{` +
                     `"rc":${this.game.round},"np":${this.game.phase},"ls":${this.game.situation},` +
@@ -148,6 +186,7 @@ class GameRoom
 
             this.client1.ws.send(send1json);
             this.client2.ws.send(send2json);
+            this.starting_time = Date.now();
         }
     }
     Surrender(ws)
@@ -221,24 +260,36 @@ wss.on('connection', (ws,req) => {
             }
             break;
         case "Match":
-            const wait_ws = WaitRegulation.get(msg.data.regulation);
+            const wait_ws = WaitRegulation.get(msg.data.deck_regulation + msg.data.match_regulation);
             if (wait_ws && wait_ws.readyState == WebSocket.OPEN)
             {
                 console.log("Match:Matching");
                 const wait_client = WaitRooms.get(wait_ws)
                 if (wait_client)
                 {
-                    let room = new GameRoom(wait_client,new ClientData(ws,msg.data));
-                    Rooms.set(ws,room);
-                    Rooms.set(wait_ws,room);
-                    WaitRooms.delete(wait_ws)
-                    WaitRegulation.delete(msg.data.regulation)
+                    const d_reg = Regulation.DeckRegulation.create(msg.data.deck_regulation);
+                    const m_reg = Regulation.MatchRegulation.create(msg.data.match_regulation);
+                    if (d_reg && m_reg)
+                    {
+                        let room = new GameRoom(wait_client,new ClientData(ws,msg.data),d_reg,m_reg);
+                        Rooms.set(ws,room);
+                        Rooms.set(wait_ws,room);
+                        WaitRooms.delete(wait_ws)
+                        WaitRegulation.delete(msg.data.deck_regulation + msg.data.match_regulation)
+                    }
+                    else
+                    {
+                        ws.send(JSON.stringify({type:"End",data:{msg:"wrong regulation"}}));
+                        wait_ws.send(JSON.stringify({type:"End",data:{msg:"wrong regulation"}}));
+                        WaitRooms.delete(wait_ws)
+                        WaitRegulation.delete(msg.data.deck_regulation + msg.data.match_regulation)
+                    }
                 }
             }
             else
             {
                 WaitRooms.set(ws,new ClientData(ws,msg.data))
-                WaitRegulation.set(msg.data.regulation,ws)
+                WaitRegulation.set(msg.data.deck_regulation + msg.data.match_regulation,ws)
                 console.log("Match:Wait");
             }
             break;
@@ -257,7 +308,7 @@ wss.on('connection', (ws,req) => {
                 if (WaitRooms.has(ws))
                 {
                     const wait_room = WaitRooms.get(ws)
-                    WaitRegulation.delete(wait_room.regulation)
+                    WaitRegulation.delete(wait_room.deck_regulation + wait_room.match_regulation)
                     WaitRooms.delete(ws)
                 }
             }
@@ -278,7 +329,7 @@ wss.on('connection', (ws,req) => {
         if (WaitRooms.has(ws))
         {
             const wait_room = WaitRooms.get(ws)
-            WaitRegulation.delete(wait_room.regulation)
+            WaitRegulation.delete(wait_room.deck_regulation + wait_room.match_regulation)
             WaitRooms.delete(ws)
         }
     });
