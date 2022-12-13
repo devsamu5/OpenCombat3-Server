@@ -78,22 +78,19 @@ class DeckRegulation
 
 class MatchRegulation
 {
-	constructor(hc,tt,cat,rat)
+	constructor(hc,tt,ct,rt)
     {
 		this.hand_count = hc;
 		this.thinking_time = tt;
-		this.combat_additional_time = cat;
-		this.recovery_additional_time = rat;
+		this.combat_time = ct;
+		this.recovery_time = rt;
     }
 	static create(regulation_string)
     {
-		const hand = regulation_string.split("/");
-		if (hand.length != 2)
-			return null;
-		const time = hand[1].split("+");
-		if (time.length != 3)
-			return null;
-		return new MatchRegulation(Number(hand[0]),Number(time[0]),Number(time[1]),Number(time[2]));
+		const p = regulation_string.split("/");
+		if (p.length < 4)
+			return null
+		return new MatchRegulation(Number(p[0]),Number(p[1]),Number(p[2]),Number(p[3]));
     }	
 }
 

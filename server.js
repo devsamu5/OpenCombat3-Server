@@ -13,7 +13,12 @@ const GameProcessor = require("./game/processor");
 
 const Regulation = require("./game/regulation")
 
+const COMBAT_RESULT_DELAY = 5000
+const COMBAT_SKILL_DELAY = 1000
+const RECOVERY_RESULT_DELAY = 1000
+
 const GRACE_PERIOD = 5000
+
 
 class ClientData
 {
@@ -27,7 +32,6 @@ class ClientData
 
         this.select = -1;
         this.remain_time = 0;
-        this.starting_time = 0;
     }
 }
 
@@ -40,6 +44,7 @@ class GameRoom
         this.game = new GameProcessor(cd1.deck,cd2.deck,match_regulation.hand_count);
         this.client1 = cd1;
         this.client2 = cd2;
+        this.starting_time = 0;
 
         this.client1.ws.send(JSON.stringify({
             type:"Primary",
@@ -82,10 +87,12 @@ class GameRoom
                     you:{
                         hand:this.game.player1.hand,
                         life:this.game.player1.life,
+                        time:this.match_regulation.thinking_time * 1000
                     },
                     rival:{
                         hand:this.game.player2.hand,
                         life:this.game.player2.life,
+                        time:this.match_regulation.thinking_time * 1000
                     }
                 }
             }));
@@ -95,16 +102,19 @@ class GameRoom
                     you:{
                         hand:this.game.player2.hand,
                         life:this.game.player2.life,
+                        time:this.match_regulation.thinking_time * 1000
                     },
                     rival:{
                         hand:this.game.player1.hand,
                         life:this.game.player1.life,
+                        time:this.match_regulation.thinking_time * 1000
                     }
                 }
             }));
             this.client1.select = this.client2.select = -1;
             this.client1.remain_time = this.client2.remain_time = this.match_regulation.thinking_time * 1000;
-            this.starting_time = Date.now();
+            const delay = this.match_regulation.combat_time * 1000 + 1000;
+            this.starting_time = Date.now() + delay;
             console.log("GameStart:");
         }
     }
@@ -115,7 +125,8 @@ class GameRoom
             if (ws === this.client1.ws)
             {
                 const elapse = Date.now() - this.starting_time;
-                this.client1.remain_time -= elapse;
+                if (elapse >= 0)
+                    this.client1.remain_time -= elapse;
                 if (this.client1.remain_time + GRACE_PERIOD < 0)
                 {
                     this.client1.select = 0;
@@ -131,7 +142,8 @@ class GameRoom
             else if (ws === this.client2.ws)
             {
                 const elapse = Date.now() - this.starting_time;
-                this.client2.remain_time -= elapse;
+                if (elapse >= 0)
+                    this.client2.remain_time -= elapse;
                 if (this.client2.remain_time + GRACE_PERIOD < 0)
                 {
                     this.client2.select = 0;
@@ -147,18 +159,16 @@ class GameRoom
         }
 
         let acted = null;
+        let delay = 0;
         if (this.game.phase == 1)
         {
             if ((this.client1.select >= 0 && this.client2.select >= 0) ||
                 (this.game.player1.is_recovery() && this.client2.select >= 0) ||
                 (this.game.player2.is_recovery() && this.client1.select >= 0))
             {
-                if (!this.game.player1.is_recovery())
-                    this.client1.remain_time += this.match_regulation.recovery_additional_time * 1000;
-                if (!this.game.player2.is_recovery())
-                    this.client2.remain_time += this.match_regulation.recovery_additional_time * 1000;
                 this.game.recover(this.client1.select,this.client2.select);
                 acted = "Recovery";
+                delay = RECOVERY_RESULT_DELAY;
             }
         }
         else if (this.game.phase == 0)
@@ -167,8 +177,8 @@ class GameRoom
             {
                 this.game.combat(this.client1.select,this.client2.select);
                 acted = "Combat";
-                this.client1.remain_time += this.match_regulation.combat_additional_time * 1000;
-                this.client2.remain_time += this.match_regulation.combat_additional_time * 1000;
+                const skill_count = this.game.player1.skill_log.length + this.game.player2.skill_log.length;
+                delay = skill_count * COMBAT_SKILL_DELAY + COMBAT_RESULT_DELAY;
             }
         }
         if (acted)
@@ -186,7 +196,11 @@ class GameRoom
 
             this.client1.ws.send(send1json);
             this.client2.ws.send(send2json);
-            this.starting_time = Date.now();
+            if (this.game.phase == 0)
+                delay += this.match_regulation.combat_time * 1000;
+            else if (this.game.phase == 1)
+                delay += this.match_regulation.recovery_time * 1000;
+            this.starting_time = Date.now() + delay;
         }
     }
     Surrender(ws)
