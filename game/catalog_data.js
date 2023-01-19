@@ -1,4 +1,56 @@
 
+const NOCOLOR = 0;
+const RED = 1;
+const GREEN = 2;
+const BLUE = 3;
+
+class Stats
+{
+    constructor(p,h,b){
+        this.power = p;
+        this.hit = h;
+        this.block = b;
+    }
+	duplicate()
+    {
+		return new Stats(this.power,this.hit,this.block);
+    }
+
+	add(other)
+    {
+		this.power += other.power
+		this.hit += other.hit
+		this.block += other.block
+    }
+	set_stats(p,h,b)
+    {
+		this.power = p
+		this.hit = h
+		this.block = b
+    }
+
+	to_array()
+    {
+		return [this.power,this.hit,this.block]
+    }
+}
+
+class CardData
+{
+    constructor(i,c,l,p,h,b,s)
+    {
+	    this.id = i;
+        this.color = c;
+        this.level = l;
+        this.power = p;
+        this.hit = h;
+        this.block = b;
+	
+        this.skills = s;
+    }
+}
+
+
 const ColorCondition = Object.freeze({
     NOCONDITION:0,
     COLOR_BITS:3,
@@ -15,25 +67,19 @@ const ColorCondition = Object.freeze({
 const ParamType = Object.freeze({
     VOID:0,
     INTEGER:1,
-    EFFECTS:2,
+    ATTRIBUTES:2,
     COLOR:3,
 });
 
 class SkillData
 {
-    constructor(i,n,pt,p)
+    constructor(i,pt)
     {
 		this.id = i;
-		this.name = n;
         this.param_type = pt.split(",");
 		if (this.param_type.length == 1 && this.param_type[0] == ParamType.VOID)
         {
             this.param_type = [];
-            this.parameter = [];
-        }
-        else
-        {
-            this.parameter = p.split(",");
         }
     }
 }
@@ -60,6 +106,8 @@ class Skill
 }
 
 module.exports = {
+    Stats:Stats,
+    CardData:CardData,
     SkillData:SkillData,
     Skill:Skill,
     ColorCondition:ColorCondition,

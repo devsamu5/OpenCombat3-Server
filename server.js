@@ -177,7 +177,7 @@ class GameRoom
             {
                 this.game.combat(this.client1.select,this.client2.select);
                 acted = "Combat";
-                const skill_count = this.game.player1.skill_log.length + this.game.player2.skill_log.length;
+                const skill_count = this.game.player1.effect_log.length + this.game.player2.effect_log.length;
                 delay = skill_count * COMBAT_SKILL_DELAY + COMBAT_RESULT_DELAY;
             }
         }

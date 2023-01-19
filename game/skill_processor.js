@@ -1,61 +1,34 @@
 
-const Effect = require("./effect");
-const Skill = require("./skill");
-const Card = require("./card");
+const CatalogData = require("./catalog_data");
+const MechanicsData = require("./mechanics_data");
 const Player = require("./player");
 
+const StateProcessor = require("./state_processor");
 
-const SkillTiming = Object.freeze({
-	BEFORE:0,
-	ENGAGED:1,
-	AFTER:2,
-	END:3
-});
 
-class ISkill
+const Timing = MechanicsData.EffectTiming;
+
+
+class Reinforce extends MechanicsData.BasicSkill
 {
-	before_priority(){return [];}
-	process_before(_skill_index,_priority,_myself,_rival){}
+    static get PRIORITY() {return 1;}
 
-	engaged_priority(){return [];}
-	process_engaged(_skill_index,_priority,situation,_myself,_rival){return situation;}
-
-	after_priority(){return [];}
-	process_after(_skill_index,_priority,_situation,_myself,_rival){}
-
-	end_priority(){return [];}
-	process_end(_skill_index,_priority,_situation,_myself,_rival){}
-}
-
-class Reinforce extends ISkill
-{
-	before_priority(){return [1];}
-	process_before(skill_index,_priority,myself,_rival)
+	_before_priority(){return [Reinforce.PRIORITY];}
+	_process_before(index,_priority,myself,_rival)
 	{
-		const skill = myself.select_card.data.skills[skill_index]
-		const affected = myself.select_card.affected;
-		skill.parameter[0].forEach(e => {
-			switch(e.data.id)
-			{
-				case Effect.Attribute.POWER:
-					affected.add(e.parameter,0,0);
-					break;
-				case Effect.Attribute.HIT:
-					affected.add(0,e.parameter,0);
-					break;
-				case Effect.Attribute.BLOCK:
-					affected.add(0,0,e.parameter);
-					break;
-			}
-		});
-		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.BEFORE,1,true))
+		const affected = myself.select_card.affected
+		var stats = this._skill.parameter[0]
+		affected.power += stats.power
+		affected.hit += stats.hit
+		affected.block += stats.block
+		myself.append_effect_log(index,Timing.BEFORE,Reinforce.PRIORITY,true)
 	}
 }
 
-class Pierce extends ISkill
+class Pierce extends MechanicsData.BasicSkill
 {
-	after_priority(){return [1];}
-	process_after(skill_index,_priority,situation,myself,rival)
+	_after_priority(){return [1];}
+	_process_after(index,_priority,situation,myself,rival)
 	{
 		let damage = 0;
 		if (situation > 0)
@@ -63,64 +36,50 @@ class Pierce extends ISkill
 			damage = Math.floor((rival.get_current_block() + 1) / 2);
 			rival.add_damage(damage);
 		}
-		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.AFTER,1,damage))
+		myself.append_effect_log(index,Timing.AFTER,1,damage);
 	}
 }
 
-class Charge extends ISkill
+class Charge extends MechanicsData.BasicSkill
 {
-	end_priority(){return [1];}
-	process_end(skill_index,_priority,_situation,myself,_rival)
+	_end_priority(){return [1];}
+	_process_end(index,_priority,_situation,myself,_rival)
 	{
-		if (myself.damage == 0)
+		if (myself.is_recovery())
 		{
-			const skill = myself.select_card.data.skills[skill_index]
-			const affected = myself.next_effect;
-			skill.parameter[0].forEach(e => {
-				switch(e.data.id)
-				{
-					case Effect.Attribute.POWER:
-						affected.add(e.parameter,0,0);
-						break;
-					case Effect.Attribute.HIT:
-						affected.add(0,e.parameter,0);
-						break;
-					case Effect.Attribute.BLOCK:
-						affected.add(0,0,e.parameter);
-						break;
-				}
-			});
-			myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.END,1,true))
+			const stats = this._skill.parameter[0];
+			const _state = new StateProcessor.NextPlus(stats,myself.get_states());
+			myself.append_effect_log(index,Timing.END,1,true);
 		}
 		else
-			myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.END,1,false))
+		{
+			myself.append_effect_log(index,Timing.END,1,false);
+		}
 	}
 }
 
-class Isolate extends ISkill
+class Isolate extends MechanicsData.BasicSkill
 {
-	engaged_priority(){return [255];}
-	process_engaged(skill_index,_priority,_situation,myself,_rival)
+	_engaged_priority(){return [255];}
+	_process_engaged(index,_priority,_situation,myself,_rival)
 	{
 		myself.add_damage(1);
-		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.ENGAGED,255,true))
+		myself.append_effect_log(index,Timing.ENGAGED,255,true);
 		return 0;
 	}
 }
 
-class Absorb extends ISkill
+class Absorb extends MechanicsData.BasicSkill
 {
-	before_priority(){return [1];}
-	process_before(skill_index,_priority,myself,_rival)
+	_before_priority(){return [1];}
+	_process_before(index,_priority,myself,_rival)
 	{
-		const skill = myself.select_card.data.skills[skill_index]
-
 		let level = 0
 		let data = -1
 		for (let i = 0;i < myself.hand.length;i++)
 		{
 			const card = myself.deck_list[myself.hand[i]]
-			if (card.data.color == skill.parameter[0])
+			if (card.data.color == this._skill.parameter[0])
 			{
 				level = card.data.level
 				myself.discard_card(i)
@@ -129,26 +88,15 @@ class Absorb extends ISkill
 				break
 			}
 		}
-		const affected = myself.select_card.affected;
-		skill.parameter[1].forEach(e => {
-			switch(e.data.id)
-			{
-				case Effect.Attribute.POWER:
-					affected.add(e.parameter * level,0,0);
-					break;
-				case Effect.Attribute.HIT:
-					affected.add(0,e.parameter * level,0);
-					break;
-				case Effect.Attribute.BLOCK:
-					affected.add(0,0,e.parameter * level);
-					break;
-			}
-		});
-		myself.skill_log.push(new Player.SkillLog(skill_index,SkillTiming.BEFORE,1,data))
+		const affected = myself.get_playing_card().affected
+		const effect = this._skill.parameter[1]
+		affected.power += effect.power * level
+		affected.hit += effect.hit * level
+		affected.block += effect.block * level
+		myself.append_effect_log(index,Timing.BEFORE,1,data);
 	}
 }
 
-module.exports.ISkill = ISkill;
 module.exports.Reinforce = Reinforce;
 module.exports.Pierce = Pierce;
 module.exports.Charge = Charge;

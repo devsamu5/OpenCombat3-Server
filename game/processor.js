@@ -1,12 +1,8 @@
 
-const Effect = require("./effect");
-const Skill = require("./skill");
-const Card = require("./card");
+const MechanicsData = require("./mechanics_data");
 const Player = require("./player");
 
 const catalog = require("./catalog");
-
-const NamedSkill = require("./skill_processor")
 
 const Phase = Object.freeze({
 	GAME_END:-1,
@@ -14,28 +10,21 @@ const Phase = Object.freeze({
 	RECOVERY:1,
 });
 
-class SkillOrder
+class EffectOrder
 {
-	constructor(p,i,m,r,situ = 0,sign = 0)
+	constructor(e,p,i,m,r,s = 0,sign = 0)
     {
+		this.effect = e
 		this.priority = p;
-		this.skill_index = i;
+		this.index = i;
 		this.myself = m;
 		this.rival = r;
-		this.situation = situ;
+		this.situation = s;
 		this.sign = sign;
     }
 	static compare(a, b){return a.priority - b.priority;}
 }
 
-const named_skills = [
-	null,
-	new NamedSkill.Reinforce(),
-	new NamedSkill.Pierce(),
-	new NamedSkill.Charge(),
-	new NamedSkill.Isolate(),
-	new NamedSkill.Absorb(),
-];
 
 class GameProcessor
 {
@@ -59,13 +48,14 @@ class GameProcessor
 
 	combat(index1,index2)
 	{
-		index1 = Math.min(Math.max(0, index1), this.player1.hand.length - 1);
-		index2 = Math.min(Math.max(0, index2), this.player2.hand.length - 1);
+		if (this.phase != Phase.COMBAT)
+			return;
 
-		const link1 = this.player1.get_lastplayed_card();
-		const link2 = this.player2.get_lastplayed_card();
-		const p1_link_color = (link1 == null) ? 0 : link1.data.color;
-		const p2_link_color = (link2 == null) ? 0 : link2.data.color;
+		index1 = Math.min(Math.max(0, index1), this.player1.get_hand().length - 1);
+		index2 = Math.min(Math.max(0, index2), this.player2.get_hand().length - 1);
+
+		const p1_link_color = this.player1.get_link_color();
+		const p2_link_color = this.player2.get_link_color();
 		this.player1.combat_start(index1);
 		this.player2.combat_start(index2);
 
@@ -77,11 +67,11 @@ class GameProcessor
 
 		if (this.situation > 0)
 		{
-			this.player2.damage = this.player1.get_current_hit();
+			this.player2.add_damage(this.player1.get_current_hit());
 		}
 		else if (this.situation < 0)
 		{
-			this.player1.damage = this.player2.get_current_hit();
+			this.player1.add_damage(this.player2.get_current_hit());
 		}
 
 		this._after_process(p1_link_color,p2_link_color);
@@ -100,7 +90,9 @@ class GameProcessor
 		this.player1.combat_end();
 		this.player2.combat_end();
 
-		if (this.player1.damage == 0 && this.player2.damage == 0)
+		this.player1.supply();
+		this.player2.supply();
+		if (this.player1.is_recovery() && this.player2.is_recovery())
 		{
 			this.round++;
 			return;
@@ -113,7 +105,7 @@ class GameProcessor
 		if (this.player1.is_recovery())
 			this.player1.no_recover();
 		else
-			(this.player1.recover(index1))
+			this.player1.recover(index1);
 		if (this.player2.is_recovery())
 			this.player2.no_recover();
 		else
@@ -124,8 +116,8 @@ class GameProcessor
 			this.round++;
 			this.phase = Phase.COMBAT;
 		}
-		else if ((!this.player1.is_recovery() && (this.player1.hand.length + this.player1.stock.length <= 1)) ||
-				 (!this.player2.is_recovery() && (this.player2.hand.length + this.player2.stock.length <= 1)))
+		else if ((!this.player1.is_recovery() && (this.player1.get_hand().length + this.player1.get_stock_count() <= 1)) ||
+				 (!this.player2.is_recovery() && (this.player2.get_hand().length + this.player2.get_stock_count() <= 1)))
 		{
 			this.phase = Phase.GAME_END;
 		}
@@ -139,97 +131,133 @@ class GameProcessor
 
 	_before_process(p1_link_color, p2_link_color)
 	{
-		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
+		const effect_order = [];
+
+		this.player1.get_states().forEach((s,i) => {
+			const priority = s._before_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player1,this.player2));});
+		});
+		this.player2.get_states().forEach((s,i) => {
+			const priority = s._before_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player2,this.player1));});
+		});
+
+		this.player1.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player2.get_playing_card().data.color,p1_link_color))
 			{
-				const priority = named_skills[s.data.id].before_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2))});
+				const priority = s._before_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player1,this.player2))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player1.get_playing_card().data.color,p2_link_color))
 			{
-				const priority = named_skills[s.data.id].before_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1))});
+				const priority = s._before_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player2,this.player1))});
 			}
 		});
-		skill_order.sort(SkillOrder.compare);
-		skill_order.forEach(e => {
-			const skill = e.myself.select_card.data.skills[e.skill_index]
-			named_skills[skill.data.id].process_before(e.skill_index,e.priority,e.myself,e.rival)
+		effect_order.sort(EffectOrder.compare);
+		effect_order.forEach(e => {
+			e.effect._process_before(e.index,e.priority,e.myself,e.rival)
 		});
 	}
 
 	_engaged_process(p1_link_color, p2_link_color)
 	{
-		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
+		const effect_order = [];
+
+		this.player1.get_states().forEach((s,i) => {
+			const priority = s._engaged_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player1,this.player2,this.situation,1));});
+		});
+		this.player2.get_states().forEach((s,i) => {
+			const priority = s._engaged_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player2,this.player1,-this.situation,-1));});
+		});
+
+		this.player1.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player2.get_playing_card().data.color,p1_link_color))
 			{
-				const priority = named_skills[s.data.id].engaged_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation,1))});
+				const priority = s._engaged_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player1,this.player2,this.situation,1))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player1.get_playing_card().data.color,p2_link_color))
 			{
-				const priority = named_skills[s.data.id].engaged_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation,-1))});
+				const priority = s._engaged_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player2,this.player1,-this.situation,-1))});
 			}
 		});
-		skill_order.sort(SkillOrder.compare);
-		skill_order.forEach(e => {
-			const skill = e.myself.select_card.data.skills[e.skill_index]
-			this.situation = named_skills[skill.data.id].process_engaged(e.skill_index,e.priority,e.situation,e.myself,e.rival) * e.sign;
+		effect_order.sort(EffectOrder.compare);
+		effect_order.forEach(e => {
+			this.situation = e.effect._process_engaged(e.index,e.priority,e.situation,e.myself,e.rival) * e.sign;
 		});
 	}
 
 	_after_process(p1_link_color, p2_link_color)
 	{
-		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
+		const effect_order = [];
+
+		this.player1.get_states().forEach((s,i) => {
+			const priority = s._after_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player1,this.player2,this.situation));});
+		});
+		this.player2.get_states().forEach((s,i) => {
+			const priority = s._after_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player2,this.player1,-this.situation));});
+		});
+
+		this.player1.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player2.get_playing_card().data.color,p1_link_color))
 			{
-				const priority = named_skills[s.data.id].after_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation))});
+				const priority = s._after_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player1,this.player2,this.situation))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player1.get_playing_card().data.color,p2_link_color))
 			{
-				const priority = named_skills[s.data.id].after_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation))});
+				const priority = s._after_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player2,this.player1,-this.situation))});
 			}
 		});
-		skill_order.sort(SkillOrder.compare);
-		skill_order.forEach(e => {
-			const skill = e.myself.select_card.data.skills[e.skill_index]
-			named_skills[skill.data.id].process_after(e.skill_index,e.priority,e.situation,e.myself,e.rival)
+		effect_order.sort(EffectOrder.compare);
+		effect_order.forEach(e => {
+			e.effect._process_after(e.index,e.priority,e.situation,e.myself,e.rival);
 		});
 	}
 
 	_end_process(p1_link_color, p2_link_color)
 	{
-		const skill_order = [];
-		this.player1.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player2.select_card.data.color,p1_link_color))
+		const effect_order = [];
+
+		this.player1.get_states().forEach((s,i) => {
+			const priority = s._end_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player1,this.player2,this.situation));});
+		});
+		this.player2.get_states().forEach((s,i) => {
+			const priority = s._end_priority();
+			priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,-(i+1),this.player2,this.player1,-this.situation));});
+		});
+
+		this.player1.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player2.get_playing_card().data.color,p1_link_color))
 			{
-				const priority = named_skills[s.data.id].end_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player1,this.player2,this.situation))});
+				const priority = s._end_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player1,this.player2,this.situation))});
 			}
 		});
-		this.player2.select_card.data.skills.forEach((s,i) => {
-			if (s.test_condition(this.player1.select_card.data.color,p2_link_color))
+		this.player2.get_playing_card().skills.forEach((s,i) => {
+			if (s._get_skill().test_condition(this.player1.get_playing_card().data.color,p2_link_color))
 			{
-				const priority = named_skills[s.data.id].end_priority();
-				priority.forEach((p)=>{skill_order.push(new SkillOrder(p,i,this.player2,this.player1,-this.situation))});
+				const priority = s._end_priority();
+				priority.forEach((p)=>{effect_order.push(new EffectOrder(s,p,i,this.player2,this.player1,-this.situation))});
 			}
 		});
-		skill_order.sort(SkillOrder.compare);
-		skill_order.forEach(e => {
-			const skill = e.myself.select_card.data.skills[e.skill_index]
-			named_skills[skill.data.id].process_end(e.skill_index,e.priority,e.situation,e.myself,e.rival)
+		effect_order.sort(EffectOrder.compare);
+		effect_order.forEach(e => {
+			e.effect._process_end(e.index,e.priority,e.situation,e.myself,e.rival);
 		});
 	}
 

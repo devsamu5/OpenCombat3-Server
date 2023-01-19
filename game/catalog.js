@@ -2,10 +2,9 @@
 'use strict';
 const fs = require("fs");
 
+const CatalogData = require("./catalog_data");
 
-const Effect = require("./effect");
-const Skill = require("./skill");
-const Card = require("./card");
+const SkillParamType = CatalogData.ParamType;
 
 
 class Catalog
@@ -15,31 +14,32 @@ class Catalog
         this.card_catalog = new Map();
         this.skill_catalog = new Map();
         
-        this.effect_catalog = [];
-
         this.version  = "";
 
-        this._load_effect_data()
         this._load_skill_data()
         this._load_card_data()
-    
     }
-
-    get_effect_data(id){return this.effect_catalog[id];}
 
     get_skill_param(param_type,param)
     {
-        if (param_type == Skill.ParamType.INTEGER)
+        if (param_type == SkillParamType.INTEGER)
         {
             return Number(param);
         }
-        if (param_type == Skill.ParamType.EFFECTS)
+        if (param_type == SkillParamType.ATTRIBUTES)
         {
-            return param.split(" ").map((v) => {
-                return Effect.Effect.create(v,this.effect_catalog);
+            const r = new CatalogData.Stats(0,0,0);
+            param.split(" ").forEach((v) => {
+                if (v.startsWith("P"))
+                    r.power = Number(v.substring(1));
+                else if (v.startsWith("H"))
+                    r.hit = Number(v.substring(1));
+                else if (v.startsWith("B"))
+                    r.block = Number(v.substring(1));
             });
+            return r;
         }
-        if (param_type == Skill.ParamType.COLOR)
+        if (param_type == SkillParamType.COLOR)
         {
             return Number(param);
         }
@@ -51,18 +51,6 @@ class Catalog
     get_card_data(id){return this.card_catalog.get(id);}
 
 
-
-    _load_effect_data()
-    {
-        const catalog = fs.readFileSync("./catalog/skill_effect_catalog.txt", "utf8");
-        const effects = catalog.split("\n");
-        this.effect_catalog = effects.map((v)=>{
-            const tsv = v.split("\t");
-            const id = Number(tsv[0])
-            return new Effect.EffectData(id,tsv[1],tsv[2]);
-        });
-    }
-
     _load_skill_data()
     {
         const catalog =  fs.readFileSync("./catalog/named_skill_catalog.txt", "utf8");
@@ -70,7 +58,7 @@ class Catalog
         skills.forEach((v)=>{
             const tsv = v.split("\t");
             const id = Number(tsv[0])
-            this.skill_catalog.set(id,new Skill.SkillData(id,tsv[1],tsv[3],tsv[4]))
+            this.skill_catalog.set(id,new CatalogData.SkillData(id,tsv[3]))
         })
     }
 
@@ -93,13 +81,15 @@ class Catalog
                 const param = line[2].split(",").map((v,i)=>{
                     return this.get_skill_param(data.param_type[i],v);
                 });
-                return new Skill.Skill(data,condition,param);
+                return new CatalogData.Skill(data,condition,param);
             })
-            this.card_catalog.set(id,new Card.CardData(id,tsv[1],
-                    Number(tsv[3]),Number(tsv[4]),Number(tsv[5]),Number(tsv[6]),Number(tsv[7]),
+            this.card_catalog.set(id,new CatalogData.CardData(id,
+                    Number(tsv[3]),Number(tsv[4]),
+                    Number(tsv[5]),Number(tsv[6]),Number(tsv[7]),
                     skills));
         })
-        this.version = this.card_catalog.get(0).name
+        const version = cards[0].split("\t")[1];
+        this.version = version;
     }
 }
 
