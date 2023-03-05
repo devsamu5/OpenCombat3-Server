@@ -186,6 +186,8 @@ class Player
 			`"l":${this.life},` +
 			`"t":${time}}`;
 	}
+
+	 a = "Hola";
 }
 
 module.exports = Player;
